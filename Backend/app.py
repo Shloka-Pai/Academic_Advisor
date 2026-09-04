@@ -40,7 +40,7 @@ app = FastAPI(title="Elective Advisor API")
 # For local dev this is fine wide-open; tighten allow_origins before deploying.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # tighten this to your Netlify URL once deployed, e.g. ["https://your-site.netlify.app"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
