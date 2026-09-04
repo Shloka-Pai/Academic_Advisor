@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elective Advisor</title>
+<style>
+  :root {
+    --ink: #1b2430;
+    --paper: #eef1ec;
+    --line: #c7cdc3;
+    --accent: #3a6b52;
+    --accent-soft: #d7e3d9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px;
+  }
+  main {
+    width: 100%;
+    max-width: 560px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  p.subhead {
+    margin: 0 0 32px;
+    color: #5b6560;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  label {
+    display: block;
+    font-size: 14px;
+    margin: 20px 0 6px;
+    color: #3d4740;
+  }
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .hint {
+    font-size: 12px;
+    color: #7a8279;
+    margin-top: 4px;
+  }
+  button {
+    margin-top: 28px;
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    font-family: inherit;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  button:hover { background: #2f5842; }
+  button:disabled { background: #9aa79f; cursor: default; }
+
+  #results { margin-top: 36px; }
+  .card {
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    background: #fff;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    border-radius: 2px;
+  }
+  .card h3 {
+    margin: 0 0 4px;
+    font-size: 17px;
+  }
+  .card .score {
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .card p {
+    margin: 8px 0 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #3d4740;
+  }
+  #error {
+    margin-top: 20px;
+    padding: 12px 14px;
+    background: #f6e3e0;
+    border: 1px solid #d9a49c;
+    border-radius: 3px;
+    font-size: 14px;
+    color: #7a2e22;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Elective Advisor</h1>
+  <p class="subhead">Tell us about your coursework, interests, and career direction. We'll suggest three electives worth considering.</p>
+
+  <form id="advisorForm">
+    <label for="courses">Courses taken</label>
+    <input type="text" id="courses" placeholder="Data Structures, Physics I, Statistics" required>
+    <div class="hint">Separate with commas</div>
+
+    <label for="interests">Interests</label>
+    <input type="text" id="interests" placeholder="Robotics, game design, sustainability" required>
+    <div class="hint">Separate with commas</div>
+
+    <label for="career">Career path</label>
+    <input type="text" id="career" placeholder="Machine Learning Engineer" required>
+
+    <button type="submit" id="submitBtn">Get recommendations</button>
+  </form>
+
+  <div id="error"></div>
+  <div id="results"></div>
+</main>
+
+<script>
+  const API_URL = "http://localhost:8000/recommend";
+
+  const form = document.getElementById("advisorForm");
+  const resultsEl = document.getElementById("results");
+  const errorEl = document.getElementById("error");
+  const submitBtn = document.getElementById("submitBtn");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    resultsEl.innerHTML = "";
+    errorEl.style.display = "none";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Thinking…";
+
+    const payload = {
+      courses_taken: document.getElementById("courses").value.split(",").map(s => s.trim()).filter(Boolean),
+      interests: document.getElementById("interests").value.split(",").map(s => s.trim()).filter(Boolean),
+      career_path: document.getElementById("career").value.trim()
+    };
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `Request failed (${res.status})`);
+      }
+
+      const data = await res.json();
+      renderResults(data.recommendations);
+    } catch (err) {
+      errorEl.textContent = "Something went wrong: " + err.message;
+      errorEl.style.display = "block";
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Get recommendations";
+    }
+  });
+
+  function renderResults(recommendations) {
+    resultsEl.innerHTML = recommendations.map(rec => `
+      <div class="card">
+        <h3>${escapeHtml(rec.elective_name)}</h3>
+        <div class="score">Fit ${rec.fit_score}/10</div>
+        <p>${escapeHtml(rec.reason)}</p>
+      </div>
+    `).join("");
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+</script>
+</body>
+</html>
